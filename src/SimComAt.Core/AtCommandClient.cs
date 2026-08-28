@@ -35,14 +35,14 @@ public sealed class AtCommandClient(IAtTransport transport)
                 var remaining = limit - stopwatch.Elapsed;
                 var line = await transport.ReadLineAsync(remaining, cancellationToken);
                 if (line is null)
-                    return new(command, lines, false, true, stopwatch.Elapsed);
+                    return new(AtCommandRedactor.Redact(command), lines, false, true, stopwatch.Elapsed);
 
                 if (string.Equals(line, command, StringComparison.OrdinalIgnoreCase)) continue;
-                lines.Add(line);
-                if (IsSuccess(line)) return new(command, lines, true, false, stopwatch.Elapsed);
-                if (IsError(line)) return new(command, lines, false, false, stopwatch.Elapsed);
+                lines.Add(AtCommandRedactor.Redact(line));
+                if (IsSuccess(line)) return new(AtCommandRedactor.Redact(command), lines, true, false, stopwatch.Elapsed);
+                if (IsError(line)) return new(AtCommandRedactor.Redact(command), lines, false, false, stopwatch.Elapsed);
             }
-            return new(command, lines, false, true, stopwatch.Elapsed);
+            return new(AtCommandRedactor.Redact(command), lines, false, true, stopwatch.Elapsed);
         }
         finally
         {

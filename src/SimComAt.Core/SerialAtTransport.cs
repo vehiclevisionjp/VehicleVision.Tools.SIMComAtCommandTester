@@ -42,7 +42,7 @@ public sealed class SerialAtTransport : IAtTransport
     public async Task WriteLineAsync(string command, CancellationToken cancellationToken = default)
     {
         EnsureOpen();
-        Trace?.Invoke(this, new AtTraceEntry(DateTimeOffset.Now, true, command));
+        Trace?.Invoke(this, new AtTraceEntry(DateTimeOffset.Now, true, AtCommandRedactor.Redact(command)));
         await _port.BaseStream.WriteAsync(System.Text.Encoding.ASCII.GetBytes(command + "\r"), cancellationToken);
         await _port.BaseStream.FlushAsync(cancellationToken);
     }
@@ -64,7 +64,7 @@ public sealed class SerialAtTransport : IAtTransport
                 {
                     var line = System.Text.Encoding.ASCII.GetString(buffer.ToArray()).TrimEnd('\r');
                     if (line.Length == 0) { buffer.Clear(); continue; }
-                    Trace?.Invoke(this, new AtTraceEntry(DateTimeOffset.Now, false, line));
+                    Trace?.Invoke(this, new AtTraceEntry(DateTimeOffset.Now, false, AtCommandRedactor.Redact(line)));
                     return line;
                 }
                 buffer.Add(one[0]);

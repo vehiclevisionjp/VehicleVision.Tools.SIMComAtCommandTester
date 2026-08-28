@@ -6,7 +6,11 @@ var tests = new (string Name, Func<Task> Run)[]
     ("ERROR応答を失敗として扱う", ErrorResponse),
     ("ATプレフィックスを補完する", PrefixIsAdded),
     ("応答なしをタイムアウトとして扱う", TimeoutResponse),
-    ("全対象モデルのプロファイルが存在する", AllProfilesExist)
+    ("主要系列のプロファイルが存在する", AllProfilesExist),
+    ("型番から5Gプロファイルを判定する", DetectsFiveGProfile),
+    ("APNとPAP認証を設定する", ConfiguresPdpContext),
+    ("認証情報をログ用文字列から除去する", RedactsCredentials),
+    ("APNへのコマンド注入を拒否する", RejectsUnsafeApn)
 };
 
 var failed = 0;
@@ -49,7 +53,7 @@ static async Task PrefixIsAdded()
     await transport.OpenAsync();
     var result = await new AtCommandClient(transport).ExecuteAsync("+CGMI");
     Assert(result.Command == "AT+CGMI", "ATプレフィックスが補完されません。");
-    Assert(transport.LastCommand == "AT+CGMI", "補完後のコマンドが送信されていません。");
+    Assert(transport.Commands.Single() == "AT+CGMI", "補完後のコマンドが送信されていません。");
 }
 
 static async Task TimeoutResponse()
@@ -62,10 +66,61 @@ static async Task TimeoutResponse()
 
 static Task AllProfilesExist()
 {
-    var models = Enum.GetValues<SimComModel>();
-    Assert(ModemProfiles.All.Count == models.Length, "プロファイル数がモデル数と一致しません。");
-    foreach (var model in models) Assert(ModemProfiles.Get(model).Commands.Count > 0, $"{model} のコマンドがありません。");
+    Assert(ModemProfiles.All.Count >= 10, "系列プロファイルが不足しています。");
+    Assert(ModemProfiles.All.All(x => x.Commands.Count > 0), "コマンドのないプロファイルがあります。");
+    Assert(ModemProfiles.Match("SIM7600JC-H").Family == SimComFamily.Sim7500_7600, "SIM7600を判定できません。");
+    Assert(ModemProfiles.Match("UNKNOWN").Family == SimComFamily.Generic, "未知の型番が汎用になりません。");
     return Task.CompletedTask;
+}
+
+static async Task DetectsFiveGProfile()
+{
+    await using var transport = new FakeTransport(
+        "OK",
+        "SIMCOM INCORPORATED", "OK",
+        "SIM8262E-M2", "OK",
+        "LE20B04SIM8262", "OK");
+    await transport.OpenAsync();
+    var identity = await ModemDetector.DetectAsync(new AtCommandClient(transport));
+    Assert(identity.Profile.Family == SimComFamily.Sim82xx_83xx, "5G系列を判定できません。");
+    Assert(identity.Profile.Supports(ModemCapability.FiveG), "5G能力が設定されていません。");
+}
+
+static async Task ConfiguresPdpContext()
+{
+    await using var transport = new FakeTransport("OK", "OK");
+    await transport.OpenAsync();
+    var service = new PdpContextService(new AtCommandClient(transport));
+    var result = await service.ConfigureAsync(new PdpContextSettings(1, "example.apn", PdpType.IPV4V6, PdpAuthentication.Pap, "user", "secret"));
+    Assert(result.IsSuccess, "PDP設定が成功しません。");
+    Assert(transport.Commands[0] == "AT+CGDCONT=1,\"IPV4V6\",\"example.apn\"", "APNコマンドが不正です。");
+    Assert(transport.Commands[1] == "AT+CGAUTH=1,1,\"secret\",\"user\"", "認証コマンドが不正です。");
+    Assert(result.Steps[1].Command == "AT+CGAUTH=1,1,\"***\",\"***\"", "結果に資格情報が残っています。");
+}
+
+static Task RedactsCredentials()
+{
+    var redacted = AtCommandRedactor.Redact("AT+CGAUTH=1,2,\"alice\",\"password\"");
+    Assert(redacted == "AT+CGAUTH=1,2,\"***\",\"***\"", "資格情報がマスクされません。");
+    var response = AtCommandRedactor.Redact("+CGAUTH: 1,1,\"alice\"");
+    Assert(response == "+CGAUTH: 1,1,\"***\"", "応答の資格情報がマスクされません。");
+    return Task.CompletedTask;
+}
+
+static async Task RejectsUnsafeApn()
+{
+    await using var transport = new FakeTransport();
+    await transport.OpenAsync();
+    try
+    {
+        await new PdpContextService(new AtCommandClient(transport)).ConfigureAsync(
+            new PdpContextSettings(1, "apn\"\rAT+CFUN=1"));
+        throw new InvalidOperationException("危険なAPNが受理されました。");
+    }
+    catch (ArgumentException)
+    {
+        Assert(transport.Commands.Count == 0, "検証前にコマンドが送信されました。");
+    }
 }
 
 static void Assert(bool condition, string message)
@@ -77,7 +132,7 @@ file sealed class FakeTransport(params string[] lines) : IAtTransport
 {
     private readonly Queue<string> _lines = new(lines);
     public bool IsOpen { get; private set; }
-    public string? LastCommand { get; private set; }
+    public List<string> Commands { get; } = [];
     public event EventHandler<AtTraceEntry>? Trace;
 
     public Task OpenAsync(CancellationToken cancellationToken = default)
@@ -94,8 +149,8 @@ file sealed class FakeTransport(params string[] lines) : IAtTransport
 
     public Task WriteLineAsync(string command, CancellationToken cancellationToken = default)
     {
-        LastCommand = command;
-        Trace?.Invoke(this, new AtTraceEntry(DateTimeOffset.Now, true, command));
+        Commands.Add(command);
+        Trace?.Invoke(this, new AtTraceEntry(DateTimeOffset.Now, true, AtCommandRedactor.Redact(command)));
         return Task.CompletedTask;
     }
 

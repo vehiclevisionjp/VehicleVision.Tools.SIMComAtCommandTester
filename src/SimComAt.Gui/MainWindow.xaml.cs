@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using VehicleVision.SimComAt;
 
@@ -63,6 +64,8 @@ public partial class MainWindow : Window
             await _client.ConnectAsync();
             StatusText.Text = $"接続中: {port}";
             ConnectButton.Content = "切断";
+            if (SelectedProfile?.Family == SimComFamily.Generic)
+                await DetectModemAsync();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
@@ -91,9 +94,101 @@ public partial class MainWindow : Window
         if (CommandGrid.SelectedItem is AtCommandDefinition definition)
         {
             CommandText.Text = definition.Command;
+            if (definition.IsParameterized)
+            {
+                AppendLog("-- パラメーター付きコマンドは専用設定画面を使用してください。");
+                return;
+            }
+            if (definition.Risk == AtCommandRisk.Destructive &&
+                MessageBox.Show(this, $"「{definition.DisplayName}」を実行しますか？\n{definition.Description}", "実行確認",
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return;
             await SendCurrentAsync();
         }
     }
+
+    private async void Detect_Click(object sender, RoutedEventArgs e)
+    {
+        if (_client?.IsConnected != true || _busy) return;
+        try
+        {
+            SetBusy(true);
+            await DetectModemAsync();
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"!! 機種判定失敗: {ex.Message}");
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    private async Task DetectModemAsync()
+    {
+        if (_client is null) return;
+        var identity = await ModemDetector.DetectAsync(_client);
+        ModelCombo.SelectedItem = identity.Profile;
+        var model = string.IsNullOrWhiteSpace(identity.Model) ? "不明" : identity.Model;
+        StatusText.Text = $"接続中: {model} / {identity.Profile.DisplayName}";
+        AppendLog($"-- 検出: {identity.Manufacturer} {model} {identity.Revision}".TrimEnd());
+    }
+
+    private async void ApplyPdp_Click(object sender, RoutedEventArgs e) =>
+        await RunPdpOperationAsync(async service =>
+        {
+            var result = await service.ConfigureAsync(ReadPdpSettings());
+            AppendLog(result.IsSuccess ? "-- APN・認証設定完了" : $"!! 設定失敗: {result.FailedStep?.RawResponse}");
+        });
+
+    private async void Attach_Click(object sender, RoutedEventArgs e) =>
+        await RunPdpOperationAsync(async service => Report(await service.AttachAsync(), "アタッチ"));
+
+    private async void Activate_Click(object sender, RoutedEventArgs e) =>
+        await RunPdpOperationAsync(async service => Report(await service.ActivateAsync(ReadContextId()), "PDP有効化"));
+
+    private async void Deactivate_Click(object sender, RoutedEventArgs e) =>
+        await RunPdpOperationAsync(async service => Report(await service.DeactivateAsync(ReadContextId()), "PDP無効化"));
+
+    private async Task RunPdpOperationAsync(Func<PdpContextService, Task> operation)
+    {
+        if (_client?.IsConnected != true || _busy) return;
+        try
+        {
+            SetBusy(true);
+            await operation(new PdpContextService(_client));
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"!! {ex.Message}");
+            MessageBox.Show(this, ex.Message, "PDP設定エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    private PdpContextSettings ReadPdpSettings()
+    {
+        var typeText = (PdpTypeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "IP";
+        var authText = (AuthCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "None";
+        return new PdpContextSettings(
+            ReadContextId(),
+            ApnText.Text.Trim(),
+            Enum.Parse<PdpType>(typeText, true),
+            Enum.Parse<PdpAuthentication>(authText, true),
+            ApnUserText.Text,
+            ApnPasswordText.Password);
+    }
+
+    private int ReadContextId() => int.TryParse(ContextIdText.Text, out var cid)
+        ? cid
+        : throw new ArgumentException("CIDは1～16の数値で入力してください。");
+
+    private void Report(AtCommandResult result, string operation) =>
+        AppendLog(result.IsSuccess ? $"-- {operation}完了" : $"!! {operation}失敗: {result.RawResponse}");
 
     private async Task SendCurrentAsync()
     {
@@ -131,10 +226,16 @@ public partial class MainWindow : Window
     {
         _busy = busy;
         SendButton.IsEnabled = !busy && _client?.IsConnected == true;
+        DetectButton.IsEnabled = !busy && _client?.IsConnected == true;
         ConnectButton.IsEnabled = !busy;
         ModelCombo.IsEnabled = _client?.IsConnected != true;
         PortCombo.IsEnabled = _client?.IsConnected != true;
         BaudCombo.IsEnabled = _client?.IsConnected != true;
+        var packetDataEnabled = !busy && _client?.IsConnected == true && SelectedProfile?.Supports(ModemCapability.PacketData) == true;
+        ApplyPdpButton.IsEnabled = packetDataEnabled;
+        AttachButton.IsEnabled = packetDataEnabled;
+        ActivateButton.IsEnabled = packetDataEnabled;
+        DeactivateButton.IsEnabled = packetDataEnabled;
     }
 
     private async Task DisconnectAsync()
