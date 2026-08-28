@@ -2,18 +2,14 @@
 
 コントリビューションを歓迎します。
 
+環境構築、ビルド、テスト、プロジェクト構成については、最初に[Development Guide](docs/DEVELOPMENT.md)を確認してください。
+
 ## 開発手順
 
 1. リポジトリをforkし、作業ブランチを作成します。
 2. 変更内容に対応するテストを追加または更新します。
-3. Releaseビルドとテストを実行します。
-4. 変更理由、確認方法、対象モジュールをPull Requestに記載します。
-
-```powershell
-dotnet restore
-dotnet build VehicleVision.Tools.SIMComAtCommandTester.sln -c Release --no-restore
-dotnet run --project tests/SimComAt.Core.Tests -c Release --no-build
-```
+3. Development Guideに従ってReleaseビルドとテストを実行します。
+4. 変更理由、確認方法、対象モジュール、実機確認の有無をPull Requestに記載します。
 
 ## ATコマンドを追加する場合
 

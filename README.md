@@ -1,32 +1,24 @@
 # SIMCom AT Command Tester
 
-2G、LPWA、LTE、5Gの幅広いSIMComモジュール向けWindows用ATコマンド制御・確認ツールです。SIM7100Jx、SIM7600JC-H、SIM7312G-M.2、SIM8262E-M2を含む主要系列を対象にしています。
-
-シリアル通信とAT応答解析を共通コアに集約し、WPF GUIと対話型CLIの2種類のフロントエンドから同じ処理を利用します。
+2G、LPWA、LTE、5Gの幅広いSIMComモジュールをWindowsから操作・確認するためのATコマンドツールです。SIM7100Jx、SIM7600JC-H、SIM7312G-M.2、SIM8262E-M2を含む主要系列を対象に、GUIとメニュー式CLIを提供します。
 
 ## 主な機能
 
-- 対象SIMComモジュールのプロファイル選択
-- `CGMI` / `CGMM` / `CGMR`による機種・ファームウェア自動判定
-- 利用可能なCOMポートの検出
-- ボーレートを指定したシリアル接続
-- 定義済みATコマンドの実行
-- 任意ATコマンドの直接入力（`AT`プレフィックスの自動補完）
-- 送受信ログとタイムスタンプの表示
-- `OK`、`ERROR`、`+CME ERROR`、`+CMS ERROR`、タイムアウトの判定
-- CLIからの基本診断コマンド一括実行
-- APN、PDPタイプ、PAP/CHAP認証の設定
-- PSアタッチとPDPコンテキストの有効化・無効化
-- 認証ユーザー名・パスワードの通信ログ自動マスク
-- SMSテキスト送信（GSM/ASCIIおよび日本語UCS2）
-- 系列別GNSS電源操作・測位情報取得
-- `>`プロンプト、Ctrl+Z終端、秘匿ペイロード送信に対応する共通対話エンジン
-- HTTP GET/POST、ステータス・本文取得
+- モジュールの自動判定と系列別プロファイル
+- COMポート検出とシリアル接続
+- 定義済みコマンドと任意ATコマンドの実行
+- 応答判定、タイムアウト、タイムスタンプ付き通信ログ
+- 基本診断、SIM・登録状態・電波強度の確認
+- APN、PDPタイプ、PAP/CHAP認証、PSアタッチの設定
+- SMS送信（GSM/ASCIIおよび日本語UCS2）
+- 系列別GNSS電源操作と測位情報取得
+- HTTP GET/POST
 - MQTT接続、publish、切断
+- パスワード、SMS本文、HTTP/MQTTペイロードのログマスク
 
 ## 対応モジュール
 
-| モジュール | プロファイル | 備考 |
+| モジュール | 対応 | 備考 |
 |---|---:|---|
 | SIM800 / SIM900系 | 対応 | 2G |
 | SIM7000系 | 対応 | LTE-M / NB-IoT / GSM |
@@ -39,105 +31,69 @@
 | SIM82xx / SIM83xx系 | 対応 | 5G、SIM8262E-M2を含む |
 | 未知のSIMCom型番 | 汎用対応 | 基本AT・SIM・ネットワーク・PDP操作 |
 
-疎通、端末情報、SIM状態、LTE/5G登録状態、電波強度、PDPコンテキストなど、各機種で共通して利用しやすい照会コマンドを収録しています。
+実際に利用できるコマンドはモジュールとファームウェアによって異なります。
+
+## ダウンロード
+
+[GitHub Releases](../../releases/latest)から、使用するCPUに合ったGUIまたはCLIのZIPをダウンロードして展開してください。
+
+- `SIMComAt-GUI-v<version>-win-x64.zip`: 一般的なWindows PC向けGUI
+- `SIMComAt-CLI-v<version>-win-x64.zip`: 一般的なWindows PC向けCLI
+- `SIMComAt-GUI-v<version>-win-arm64.zip`: Windows on Arm向けGUI
+- `SIMComAt-CLI-v<version>-win-arm64.zip`: Windows on Arm向けCLI
+
+Release版は自己完結型のため、.NET Runtimeの別途インストールは不要です。公開前のソースから実行する場合は[開発者ガイド](docs/DEVELOPMENT.md)を参照してください。
 
 ## 動作環境
 
 - Windows 10またはWindows 11
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - 対象モジュール用USBドライバー
 - SIMComモジュールのATコマンド用COMポート
 
-実行ファイルをビルドせず利用する場合も、.NET 10 Desktop Runtimeが必要です。デバイスマネージャーでATコマンド用ポートを確認してください。診断、NMEA、モデムなどの別ポートを選ぶと応答しません。
+デバイスマネージャーでATコマンド用ポートを確認してください。診断、NMEA、モデムなどの別ポートを選ぶと応答しません。
 
-## ビルド
+## クイックスタート
 
-リポジトリのルートで次を実行します。
+1. ReleaseのZIPを展開し、GUIまたはCLIの実行ファイルを起動します。
+2. モジュールを接続し、ATコマンド用COMポートを確認します。
+3. モデル、COMポート、ボーレートを選択します。機種が不明な場合は「自動検出 / 汎用SIMCom」を選びます。
+4. 接続後、基本診断または`AT`を実行して応答を確認します。
 
-```powershell
-dotnet restore
-dotnet build VehicleVision.Tools.SIMComAtCommandTester.sln -c Release --no-restore
-```
+標準的な接続設定は`115200 bps / 8-N-1 / フロー制御なし`です。モジュールやファームウェアの設定に応じて変更してください。
 
-### GUI
+## GUIの使い方
 
-```powershell
-dotnet run --project src/SimComAt.Gui
-```
+接続後、定義済みコマンドをダブルクリックするか、入力欄から任意のATコマンドを送信できます。
 
-モデル、COMポート、ボーレートを選択して接続します。「自動検出 / 汎用SIMCom」を選ぶと接続後に機種判定を行います。定義済みコマンドをダブルクリックするか、上部の入力欄から任意のATコマンドを送信します。
+- `APN / PDP`: CID、PDPタイプ、APN、認証方式、ユーザー名、パスワードを設定
+- `SMS`: GSM/ASCIIまたはUCS2を選んでテキスト送信
+- `GNSS`: 電源操作と測位情報取得
+- `HTTP`: GET/POSTとレスポンス取得
+- `MQTT`: 接続、publish、切断
 
-`APN / PDP`タブではCID、PDPタイプ、APN、認証方式、ユーザー名、パスワードを入力し、`AT+CGDCONT`と`AT+CGAUTH`を設定できます。資格情報は保存せず、通信ログでは`***`に置き換えます。設定後、必要に応じてPSアタッチとPDP有効化を実行してください。
+日本語SMSにはUCS2を使用してください。目安はGSM/ASCIIが160文字、UCS2が70文字です。
 
-`SMS`タブではGSM/ASCII（最大160文字）またはUCS2（最大70文字）を選択して送信できます。日本語を送る場合はUCS2を選択してください。SMS本文は通信ログへ出力しません。
+## CLIの使い方
 
-`GNSS`タブでは選択・検出された系列に応じて、`CGNS`、`CGNSS`、`CGPS`系のコマンドを切り替えて電源操作と測位情報取得を行います。
+起動後にモデルとCOMポートを選び、番号メニューから操作します。定義済みコマンド、任意入力、一括診断、APN・認証設定、SMS、GNSS、HTTP、MQTTなどを利用できます。パスワード入力は画面に表示されません。
 
-`HTTP`タブではGET/POSTを実行し、POST本文をUTF-8で送信します。`MQTT`タブでは`CMQTT`コマンド群による接続、publish、切断を実行します。HTTP/MQTTの本文と資格情報は通信ログへ出力しません。
+## 注意事項と制限
 
-### CLI
-
-```powershell
-dotnet run --project src/SimComAt.Cli
-```
-
-起動後にモデルとCOMポートを選び、番号メニューから定義済みコマンド、任意入力、一括診断、APN・認証設定、PSアタッチ、PDP有効化、SMS、GNSS、HTTP、MQTT操作などを選択します。CLIのパスワード入力は画面に表示されません。
-
-通常の接続設定は `115200 bps / 8-N-1 / フロー制御なし` です。利用するモジュールやファームウェアに応じて変更してください。
-
-## テスト
-
-テストプロジェクトは外部テストフレームワークに依存しない実行形式です。
-
-```powershell
-dotnet run --project tests/SimComAt.Core.Tests -c Release
-```
-
-プルリクエストと`main`ブランチへのpushでは、GitHub Actionsが.NET 10のReleaseビルドとテストを実行します。
-
-## Visual Studio Code
-
-[C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit)とC#拡張を推奨しています。リポジトリをVS Codeで開くと、推奨拡張機能のインストール案内が表示されます。
-
-- `Ctrl+Shift+B`: Debug構成でソリューションをビルド
-- `Terminal` → `Run Task`: restore、Releaseビルド、テスト、GUI/CLI起動
-- `Run and Debug`: GUI、CLI、コアテストをブレークポイント付きで実行
-
-VS CodeのExplorer、検索、ファイル監視から`bin`、`obj`、`.vs`は除外されます。Gitの追跡対象からも`.gitignore`で除外されています。
-
-## バージョンとリリース
-
-[Semantic Versioning 2.0.0](https://semver.org/)を採用し、最初の公開プレビューを`0.1.0`とします。`v0.1.0`のようなタグをpushすると、GitHub ActionsがWindows x64/Arm64向けの自己完結型GUI・CLI、ZIP、SHA-256チェックサム、リリースノートを生成します。
-
-詳細な公開手順は[Release Guide](docs/RELEASING.md)、変更履歴は[CHANGELOG.md](CHANGELOG.md)を参照してください。
-
-## プロジェクト構成
-
-```text
-src/
-  SimComAt.Core/       シリアル通信、AT応答解析、機種プロファイル
-  SimComAt.Gui/        Windows WPF GUI
-  SimComAt.Cli/        対話型CLI
-tests/
-  SimComAt.Core.Tests/ 共通コアの動作確認
-```
-
-機種固有コマンドは `src/SimComAt.Core/ModemProfiles.cs` に追加できます。USBシリアル以外の通信方式へ差し替える場合は `IAtTransport` を実装してください。
-
-## 制限事項
-
-- 実機とファームウェアの組み合わせによる動作確認が必要です。
-- 基本、SIM、ネットワーク、PDP、SMS、GNSS、HTTP/MQTT等の代表的なコマンドを収録していますが、全系列の全コマンドを一律に保証するものではありません。
-- HTTP/MQTT専用ワークフローはSIMComの`HTTP*`、`CMQTT*`コマンド群を対象とします。ファームウェアによってコマンドが未搭載、または構文が異なる場合があります。
-- TCP/UDPソケット、FTP、ファイルシステムの専用ワークフローは未対応ですが、任意AT入力から実行できます。
+- 実機とファームウェアの組み合わせごとに動作確認が必要です。
+- 全系列の全ATコマンドを一律に保証するものではありません。未収録のコマンドは任意AT入力から実行できます。
+- HTTP/MQTTはSIMComの`HTTP*`、`CMQTT*`コマンド群を対象とし、ファームウェアによって未搭載または構文が異なる場合があります。
+- TCP/UDPソケット、FTP、ファイルシステムの専用画面・メニューは未対応です。
 - SMSの連結メッセージ、PDUモード、受信管理、配信レポートは未対応です。
-- コマンドを追加する際は、対象モジュールとファームウェアに対応したSIMCom公式ATコマンドマニュアルを確認してください。
-- 書き込み系ATコマンドはモジュール設定や通信状態を変更する可能性があります。内容を確認してから実行してください。
+- 書き込み系ATコマンドはモジュール設定や通信状態を変更します。内容を確認してから実行してください。
+- Issueへログを添付する前に、電話番号、IMEI、IMSI、ICCID、APNなど実機由来の情報を除去してください。
 
-## コントリビューション
+## ドキュメント
 
-IssueやPull Requestを歓迎します。開発手順と注意事項は[CONTRIBUTING.md](CONTRIBUTING.md)を参照してください。脆弱性に関する報告は[SECURITY.md](SECURITY.md)に従ってください。
+- [変更履歴](CHANGELOG.md)
+- [開発者ガイド](docs/DEVELOPMENT.md)
+- [コントリビューションガイド](CONTRIBUTING.md)
+- [セキュリティポリシー](SECURITY.md)
 
 ## ライセンス
 
-このプロジェクトは[MIT License](LICENSE)で公開されています。
+[MIT License](LICENSE)
