@@ -13,7 +13,11 @@ var tests = new (string Name, Func<Task> Run)[]
     ("APNへのコマンド注入を拒否する", RejectsUnsafeApn),
     ("SMSプロンプト後に本文とCtrl+Zを送信する", SendsSmsPayload),
     ("日本語SMSをUCS2へ変換する", SendsUcs2Sms),
-    ("系列別GNSSコマンドを選択する", SelectsGnssCommands)
+    ("系列別GNSSコマンドを選択する", SelectsGnssCommands),
+    ("HTTP GET結果を解析する", SendsHttpGet),
+    ("MQTT接続とpublishを実行する", ConnectsAndPublishesMqtt),
+    ("MQTT認証情報をマスクする", RedactsMqttCredentials),
+    ("MQTTの非ゼロURCを失敗にする", RejectsMqttErrorUrc)
 };
 
 var failed = 0;
@@ -157,6 +161,56 @@ static Task SelectsGnssCommands()
     Assert(GnssService.TryGetCommands(SimComFamily.A76xx, out var cat1) && cat1.PowerOn == "AT+CGNSSPWR=1", "A76xx GNSSが不正です。");
     Assert(GnssService.TryGetCommands(SimComFamily.Sim7500_7600, out var lte) && lte.Information == "AT+CGPSINFO", "SIM7600 GNSSが不正です。");
     return Task.CompletedTask;
+}
+
+static async Task SendsHttpGet()
+{
+    await using var transport = new FakeTransport(
+        "OK", "OK", "OK", "OK", "+HTTPACTION: 0,200,5",
+        "+HTTPREAD: 5", "hello", "OK", "OK");
+    await transport.OpenAsync();
+    var result = await new HttpService(new AtCommandClient(transport)).SendAsync(
+        new HttpRequestSettings("https://example.com/health"));
+    Assert(result.Workflow.IsSuccess, "HTTPワークフローが成功しません。");
+    Assert(result.StatusCode == 200 && result.ContentLength == 5, "HTTP応答情報が不正です。");
+    Assert(result.Content == "hello", "HTTP本文が一致しません。");
+    Assert(transport.Commands.Contains("AT+HTTPTERM"), "HTTPサービスが終了されていません。");
+}
+
+static async Task ConnectsAndPublishesMqtt()
+{
+    await using var transport = new FakeTransport(
+        "OK", "+CMQTTSTART: 0", "OK", "OK", "+CMQTTCONNECT: 0,0",
+        "OK", "OK", "OK", "+CMQTTPUB: 0,0");
+    await transport.OpenAsync();
+    var service = new MqttService(new AtCommandClient(transport));
+    var connected = await service.ConnectAsync(new MqttConnectionSettings(
+        "tcp://broker.example.com:1883", "tester", "alice", "secret"));
+    var published = await service.PublishAsync(0, new MqttPublishSettings("device/status", "{\"ok\":true}"));
+    Assert(connected.IsSuccess, "MQTT接続が成功しません。");
+    Assert(published.IsSuccess, "MQTT publishが成功しません。");
+    Assert(transport.RawWrites.Count == 2, "トピックとペイロードが送信されていません。");
+    Assert(transport.RawWrites.All(x => x.Length == 0 || x[^1] != 0x1A), "MQTTペイロードへCtrl+Zが付加されています。");
+}
+
+static Task RedactsMqttCredentials()
+{
+    var command = "AT+CMQTTCONNECT=0,\"tcp://host:1883\",60,1,\"alice\",\"secret\"";
+    var redacted = AtCommandRedactor.Redact(command);
+    Assert(!redacted.Contains("alice", StringComparison.Ordinal) && !redacted.Contains("secret", StringComparison.Ordinal),
+        "MQTT認証情報がマスクされません。");
+    Assert(AtCommandRedactor.Redact("AT+HTTPPARA=\"URL\",\"https://example.com/?token=secret\"") ==
+           "AT+HTTPPARA=\"URL\",\"***\"", "HTTP URLがマスクされません。");
+    return Task.CompletedTask;
+}
+
+static async Task RejectsMqttErrorUrc()
+{
+    await using var transport = new FakeTransport("OK", "+CMQTTSTART: 7");
+    await transport.OpenAsync();
+    var result = await new MqttService(new AtCommandClient(transport)).ConnectAsync(
+        new MqttConnectionSettings("tcp://broker.example.com:1883", "tester"));
+    Assert(!result.IsSuccess && result.FailedStep?.Command == "WAIT +CMQTTSTART:", "MQTTエラーURCが成功扱いです。");
 }
 
 static void Assert(bool condition, string message)

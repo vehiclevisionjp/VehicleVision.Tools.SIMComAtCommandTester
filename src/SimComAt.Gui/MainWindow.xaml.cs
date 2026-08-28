@@ -205,6 +205,70 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void HttpSend_Click(object sender, RoutedEventArgs e)
+    {
+        if (_client?.IsConnected != true || _busy) return;
+        try
+        {
+            SetBusy(true);
+            var methodText = (HttpMethodCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Get";
+            var settings = new HttpRequestSettings(HttpUrlText.Text.Trim(),
+                Enum.Parse<HttpRequestMethod>(methodText, true), HttpBodyText.Text, HttpContentTypeText.Text.Trim());
+            var result = await new HttpService(_client).SendAsync(settings);
+            if (result.StatusCode is not null) AppendLog($"-- HTTP {result.StatusCode} ({result.ContentLength} bytes)");
+            if (result.Content.Length > 0) AppendLog(result.Content);
+            if (!result.Workflow.IsSuccess) AppendLog($"!! HTTP失敗: {result.Workflow.FailedStep?.RawResponse}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"!! HTTP失敗: {ex.Message}");
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    private async void MqttConnect_Click(object sender, RoutedEventArgs e) =>
+        await RunMqttOperationAsync(async service =>
+        {
+            var result = await service.ConnectAsync(new MqttConnectionSettings(
+                MqttBrokerText.Text.Trim(), MqttClientIdText.Text.Trim(), MqttUserText.Text, MqttPasswordText.Password));
+            AppendLog(result.IsSuccess ? "-- MQTT接続完了" : $"!! MQTT接続失敗: {result.FailedStep?.RawResponse}");
+        });
+
+    private async void MqttPublish_Click(object sender, RoutedEventArgs e) =>
+        await RunMqttOperationAsync(async service =>
+        {
+            var result = await service.PublishAsync(0, new MqttPublishSettings(MqttTopicText.Text, MqttPayloadText.Text));
+            AppendLog(result.IsSuccess ? "-- MQTT publish完了" : $"!! MQTT publish失敗: {result.FailedStep?.RawResponse}");
+        });
+
+    private async void MqttDisconnect_Click(object sender, RoutedEventArgs e) =>
+        await RunMqttOperationAsync(async service =>
+        {
+            var result = await service.DisconnectAsync(0);
+            AppendLog(result.IsSuccess ? "-- MQTT切断完了" : $"!! MQTT切断失敗: {result.FailedStep?.RawResponse}");
+        });
+
+    private async Task RunMqttOperationAsync(Func<MqttService, Task> operation)
+    {
+        if (_client?.IsConnected != true || _busy) return;
+        try
+        {
+            SetBusy(true);
+            await operation(new MqttService(_client));
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"!! MQTT操作失敗: {ex.Message}");
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
     private async Task RunPdpOperationAsync(Func<PdpContextService, Task> operation)
     {
         if (_client?.IsConnected != true || _busy) return;
@@ -295,6 +359,11 @@ public partial class MainWindow : Window
         GnssOnButton.IsEnabled = gnssEnabled;
         GnssInfoButton.IsEnabled = gnssEnabled;
         GnssOffButton.IsEnabled = gnssEnabled;
+        HttpSendButton.IsEnabled = !busy && _client?.IsConnected == true && SelectedProfile?.Supports(ModemCapability.Http) == true;
+        var mqttEnabled = !busy && _client?.IsConnected == true && SelectedProfile?.Supports(ModemCapability.Mqtt) == true;
+        MqttConnectButton.IsEnabled = mqttEnabled;
+        MqttPublishButton.IsEnabled = mqttEnabled;
+        MqttDisconnectButton.IsEnabled = mqttEnabled;
     }
 
     private async Task DisconnectAsync()

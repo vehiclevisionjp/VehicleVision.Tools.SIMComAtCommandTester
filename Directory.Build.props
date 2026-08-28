@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <VersionPrefix>0.1.0</VersionPrefix>
-    <Authors>VehicleVision</Authors>
+    <Authors>PMC Co., Ltd. IS Solution Div.</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

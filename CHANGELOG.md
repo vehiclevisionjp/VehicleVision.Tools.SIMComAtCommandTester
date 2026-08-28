@@ -11,6 +11,7 @@
 - APN、PAP/CHAP認証、PSアタッチ、PDPコンテキスト操作
 - GSM/ASCIIおよび日本語UCS2のSMS送信
 - 系列別GNSS操作
+- HTTP GET/POSTとMQTT connect/publish/disconnect
 - 資格情報マスクとコマンド入力検証
 - GitHub Actions CIとVS Code開発設定
 

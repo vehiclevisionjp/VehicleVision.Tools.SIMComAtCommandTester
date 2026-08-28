@@ -117,6 +117,56 @@
                                    Text="初回測位には屋外で数分かかる場合があります。アンテナ接続とモジュール仕様を確認してください。" />
                     </StackPanel>
                 </TabItem>
+                <TabItem Header="HTTP">
+                    <Grid Margin="14">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="90" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="URL" VerticalAlignment="Center" />
+                        <TextBox x:Name="HttpUrlText" Grid.Column="1" Margin="4" Padding="4" Text="https://" />
+                        <TextBlock Grid.Row="1" Text="メソッド" VerticalAlignment="Center" />
+                        <ComboBox x:Name="HttpMethodCombo" Grid.Row="1" Grid.Column="1" Margin="4" SelectedIndex="0">
+                            <ComboBoxItem Content="GET" Tag="Get" /><ComboBoxItem Content="POST" Tag="Post" />
+                        </ComboBox>
+                        <TextBlock Grid.Row="2" Text="Content-Type" VerticalAlignment="Center" />
+                        <TextBox x:Name="HttpContentTypeText" Grid.Row="2" Grid.Column="1" Margin="4" Padding="4" Text="application/json" />
+                        <TextBlock Grid.Row="3" Text="本文" Margin="0,8,0,0" />
+                        <TextBox x:Name="HttpBodyText" Grid.Row="3" Grid.Column="1" Margin="4" Padding="6" AcceptsReturn="True"
+                                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+                        <Button x:Name="HttpSendButton" Grid.Row="4" Grid.ColumnSpan="2" Content="HTTP実行" Click="HttpSend_Click"
+                                Margin="0,12,0,0" Padding="14,5" HorizontalAlignment="Left" IsEnabled="False" />
+                    </Grid>
+                </TabItem>
+                <TabItem Header="MQTT">
+                    <Grid Margin="14">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" /><RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="ブローカー" VerticalAlignment="Center" />
+                        <TextBox x:Name="MqttBrokerText" Grid.Column="1" Margin="4" Padding="4" Text="tcp://localhost:1883" />
+                        <TextBlock Grid.Row="1" Text="クライアントID" VerticalAlignment="Center" />
+                        <TextBox x:Name="MqttClientIdText" Grid.Row="1" Grid.Column="1" Margin="4" Padding="4" Text="simcom-tester" />
+                        <TextBlock Grid.Row="2" Text="ユーザー名" VerticalAlignment="Center" />
+                        <TextBox x:Name="MqttUserText" Grid.Row="2" Grid.Column="1" Margin="4" Padding="4" />
+                        <TextBlock Grid.Row="3" Text="パスワード" VerticalAlignment="Center" />
+                        <PasswordBox x:Name="MqttPasswordText" Grid.Row="3" Grid.Column="1" Margin="4" Padding="4" />
+                        <TextBlock Grid.Row="4" Text="トピック" VerticalAlignment="Center" />
+                        <TextBox x:Name="MqttTopicText" Grid.Row="4" Grid.Column="1" Margin="4" Padding="4" />
+                        <TextBlock Grid.Row="5" Text="ペイロード" Margin="0,8,0,0" />
+                        <TextBox x:Name="MqttPayloadText" Grid.Row="5" Grid.RowSpan="2" Grid.Column="1" Margin="4" Padding="6"
+                                 AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+                        <WrapPanel Grid.Row="7" Grid.ColumnSpan="2" Margin="0,12,0,0">
+                            <Button x:Name="MqttConnectButton" Content="接続" Click="MqttConnect_Click" Padding="14,5" IsEnabled="False" />
+                            <Button x:Name="MqttPublishButton" Content="Publish" Click="MqttPublish_Click" Margin="6,0,0,0" Padding="14,5" IsEnabled="False" />
+                            <Button x:Name="MqttDisconnectButton" Content="切断" Click="MqttDisconnect_Click" Margin="6,0,0,0" Padding="14,5" IsEnabled="False" />
+                        </WrapPanel>
+                    </Grid>
+                </TabItem>
             </TabControl>
             <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" />
             <GroupBox Grid.Column="2" Header="通信ログ" Padding="6">

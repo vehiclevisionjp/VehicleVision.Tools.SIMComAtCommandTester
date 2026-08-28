@@ -54,7 +54,7 @@ public sealed class AtCommandClient(IAtTransport transport)
         string command,
         string prompt,
         ReadOnlyMemory<byte> payload,
-        byte terminator = 0x1A,
+        byte? terminator = 0x1A,
         string payloadTraceText = "[ペイロード]",
         TimeSpan? promptTimeout = null,
         TimeSpan? responseTimeout = null,
@@ -72,9 +72,9 @@ public sealed class AtCommandClient(IAtTransport transport)
             if (promptResponse.Contains("ERROR", StringComparison.OrdinalIgnoreCase))
                 return new(AtCommandRedactor.Redact(command), [promptResponse.Trim()], false, false, stopwatch.Elapsed);
 
-            var terminatedPayload = new byte[payload.Length + 1];
+            var terminatedPayload = new byte[payload.Length + (terminator.HasValue ? 1 : 0)];
             payload.CopyTo(terminatedPayload);
-            terminatedPayload[^1] = terminator;
+            if (terminator.HasValue) terminatedPayload[^1] = terminator.Value;
             await transport.WriteRawAsync(terminatedPayload, payloadTraceText, cancellationToken);
 
             var lines = new List<string>();
@@ -90,6 +90,35 @@ public sealed class AtCommandClient(IAtTransport transport)
                 if (IsError(line)) return new(AtCommandRedactor.Redact(command), lines, false, false, stopwatch.Elapsed);
             }
             return new(AtCommandRedactor.Redact(command), lines, false, true, stopwatch.Elapsed);
+        }
+        finally
+        {
+            _commandLock.Release();
+        }
+    }
+
+    public async Task<AtCommandResult> WaitForUnsolicitedAsync(
+        string prefix,
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(prefix)) throw new ArgumentException("URCプレフィックスを指定してください。", nameof(prefix));
+        var limit = timeout ?? TimeSpan.FromSeconds(60);
+        await _commandLock.WaitAsync(cancellationToken);
+        try
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var lines = new List<string>();
+            while (stopwatch.Elapsed < limit)
+            {
+                var line = await transport.ReadLineAsync(limit - stopwatch.Elapsed, cancellationToken);
+                if (line is null) return new($"WAIT {prefix}", lines, false, true, stopwatch.Elapsed);
+                lines.Add(AtCommandRedactor.Redact(line));
+                if (line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    return new($"WAIT {prefix}", lines, true, false, stopwatch.Elapsed);
+                if (IsError(line)) return new($"WAIT {prefix}", lines, false, false, stopwatch.Elapsed);
+            }
+            return new($"WAIT {prefix}", lines, false, true, stopwatch.Elapsed);
         }
         finally
         {

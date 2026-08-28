@@ -75,10 +75,10 @@ static async Task RunMenuAsync(ModemProfile profile, AtCommandClient client)
         Console.WriteLine($"プロファイル: {profile.DisplayName}");
         Console.WriteLine("1. 定義済みコマンド  2. AT直接入力  3. 一括診断  4. APN・認証設定");
         Console.WriteLine("5. PSアタッチ        6. PDP有効化    7. PDP無効化  8. 機種再判定");
-        Console.WriteLine("9. SMS送信           10. GNSS操作                              0. 終了");
+        Console.WriteLine("9. SMS送信           10. GNSS操作     11. HTTP実行   12. MQTT操作  0. 終了");
         try
         {
-            switch (ReadInt("選択: ", 0, 0, 10))
+            switch (ReadInt("選択: ", 0, 0, 12))
             {
                 case 0:
                     await client.DisconnectAsync();
@@ -117,6 +117,12 @@ static async Task RunMenuAsync(ModemProfile profile, AtCommandClient client)
                     break;
                 case 10:
                     await RunGnssAsync(profile, client);
+                    break;
+                case 11:
+                    await RunHttpAsync(client);
+                    break;
+                case 12:
+                    await RunMqttAsync(client);
                     break;
             }
         }
@@ -190,6 +196,60 @@ static async Task RunGnssAsync(ModemProfile profile, AtCommandClient client)
         case 1: PrintResult(await service.PowerOnAsync(), "GNSS電源ON"); break;
         case 2: PrintResult(await service.GetInformationAsync(), "GNSS情報取得"); break;
         case 3: PrintResult(await service.PowerOffAsync(), "GNSS電源OFF"); break;
+    }
+}
+
+static async Task RunHttpAsync(AtCommandClient client)
+{
+    Console.Write("URL: ");
+    var url = Console.ReadLine()?.Trim() ?? string.Empty;
+    Console.WriteLine("1. GET  2. POST");
+    var method = ReadInt("選択 [1]: ", 1, 1, 2) == 1 ? HttpRequestMethod.Get : HttpRequestMethod.Post;
+    var body = string.Empty;
+    var contentType = "application/json";
+    if (method == HttpRequestMethod.Post)
+    {
+        Console.Write($"Content-Type [{contentType}]: ");
+        contentType = Console.ReadLine() is { Length: > 0 } value ? value : contentType;
+        Console.Write("本文: ");
+        body = Console.ReadLine() ?? string.Empty;
+    }
+    var result = await new HttpService(client).SendAsync(new HttpRequestSettings(url, method, body, contentType));
+    Console.WriteLine(result.StatusCode is null
+        ? $"HTTP失敗: {result.Workflow.FailedStep?.RawResponse}"
+        : $"HTTP {result.StatusCode} ({result.ContentLength} bytes)");
+    if (result.Content.Length > 0) Console.WriteLine(result.Content);
+}
+
+static async Task RunMqttAsync(AtCommandClient client)
+{
+    var service = new MqttService(client);
+    Console.WriteLine("1. 接続  2. Publish  3. 切断  0. 戻る");
+    switch (ReadInt("選択: ", 0, 0, 3))
+    {
+        case 1:
+            Console.Write("ブローカー (tcp://host:1883): ");
+            var broker = Console.ReadLine()?.Trim() ?? string.Empty;
+            Console.Write("クライアントID: ");
+            var clientId = Console.ReadLine()?.Trim() ?? string.Empty;
+            Console.Write("ユーザー名 (認証なしは空): ");
+            var user = Console.ReadLine() ?? string.Empty;
+            var password = user.Length > 0 ? ReadSecret("パスワード: ") : string.Empty;
+            var connected = await service.ConnectAsync(new MqttConnectionSettings(broker, clientId, user, password));
+            Console.WriteLine(connected.IsSuccess ? "MQTT接続完了" : $"MQTT接続失敗: {connected.FailedStep?.RawResponse}");
+            break;
+        case 2:
+            Console.Write("トピック: ");
+            var topic = Console.ReadLine() ?? string.Empty;
+            Console.Write("ペイロード: ");
+            var payload = Console.ReadLine() ?? string.Empty;
+            var published = await service.PublishAsync(0, new MqttPublishSettings(topic, payload));
+            Console.WriteLine(published.IsSuccess ? "MQTT publish完了" : $"MQTT publish失敗: {published.FailedStep?.RawResponse}");
+            break;
+        case 3:
+            var disconnected = await service.DisconnectAsync(0);
+            Console.WriteLine(disconnected.IsSuccess ? "MQTT切断完了" : $"MQTT切断失敗: {disconnected.FailedStep?.RawResponse}");
+            break;
     }
 }
 

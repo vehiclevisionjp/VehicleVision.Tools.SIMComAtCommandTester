@@ -132,3 +132,38 @@ public enum SmsTextEncoding
 public sealed record SmsMessage(string Destination, string Text, SmsTextEncoding Encoding = SmsTextEncoding.Gsm);
 
 public sealed record GnssCommandSet(string PowerOn, string PowerOff, string Information);
+
+public enum HttpRequestMethod
+{
+    Get = 0,
+    Post = 1
+}
+
+public sealed record HttpRequestSettings(
+    string Url,
+    HttpRequestMethod Method = HttpRequestMethod.Get,
+    string Body = "",
+    string ContentType = "application/json",
+    int ContextId = 1,
+    TimeSpan? Timeout = null);
+
+public sealed record HttpWorkflowResult(
+    AtWorkflowResult Workflow,
+    int? StatusCode,
+    int? ContentLength,
+    string Content);
+
+public sealed record MqttConnectionSettings(
+    string Broker,
+    string ClientId,
+    string UserName = "",
+    string Password = "",
+    int ClientIndex = 0,
+    int KeepAliveSeconds = 60,
+    bool CleanSession = true);
+
+public sealed record MqttPublishSettings(
+    string Topic,
+    string Payload,
+    int QualityOfService = 0,
+    bool Retain = false);
