@@ -1,0 +1,36 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimComAt.Core", "src\SimComAt.Core\SimComAt.Core.csproj", "{637A3576-7485-4C48-A934-1928EA9D3CC8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimComAt.Cli", "src\SimComAt.Cli\SimComAt.Cli.csproj", "{66C1E0AB-F4EC-43A4-BA91-87858BC7F57E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimComAt.Gui", "src\SimComAt.Gui\SimComAt.Gui.csproj", "{187776D4-1646-4532-B917-5F735F69A287}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimComAt.Core.Tests", "tests\SimComAt.Core.Tests\SimComAt.Core.Tests.csproj", "{2718549F-F60E-49D0-AE56-0C4F3FB00A4C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{637A3576-7485-4C48-A934-1928EA9D3CC8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{637A3576-7485-4C48-A934-1928EA9D3CC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{637A3576-7485-4C48-A934-1928EA9D3CC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{637A3576-7485-4C48-A934-1928EA9D3CC8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{66C1E0AB-F4EC-43A4-BA91-87858BC7F57E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{66C1E0AB-F4EC-43A4-BA91-87858BC7F57E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{66C1E0AB-F4EC-43A4-BA91-87858BC7F57E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{66C1E0AB-F4EC-43A4-BA91-87858BC7F57E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{187776D4-1646-4532-B917-5F735F69A287}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{187776D4-1646-4532-B917-5F735F69A287}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{187776D4-1646-4532-B917-5F735F69A287}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{187776D4-1646-4532-B917-5F735F69A287}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2718549F-F60E-49D0-AE56-0C4F3FB00A4C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2718549F-F60E-49D0-AE56-0C4F3FB00A4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2718549F-F60E-49D0-AE56-0C4F3FB00A4C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2718549F-F60E-49D0-AE56-0C4F3FB00A4C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,62 @@
+<Window x:Class="VehicleVision.SimComAt.Gui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SIMCom AT Command Tester" Height="720" Width="1100" MinHeight="560" MinWidth="820"
+        WindowStartupLocation="CenterScreen">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <GroupBox Header="接続" Padding="10">
+            <WrapPanel VerticalAlignment="Center">
+                <TextBlock Text="モデル" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <ComboBox x:Name="ModelCombo" Width="155" DisplayMemberPath="DisplayName" SelectionChanged="ModelCombo_SelectionChanged" />
+                <TextBlock Text="ポート" VerticalAlignment="Center" Margin="16,0,6,0" />
+                <ComboBox x:Name="PortCombo" Width="90" />
+                <Button Content="更新" Click="RefreshPorts_Click" Margin="5,0,0,0" Padding="10,3" />
+                <TextBlock Text="ボーレート" VerticalAlignment="Center" Margin="16,0,6,0" />
+                <ComboBox x:Name="BaudCombo" Width="100" IsEditable="True" Text="115200">
+                    <ComboBoxItem Content="9600" /><ComboBoxItem Content="57600" />
+                    <ComboBoxItem Content="115200" /><ComboBoxItem Content="921600" />
+                </ComboBox>
+                <Button x:Name="ConnectButton" Content="接続" Click="Connect_Click" Margin="16,0,0,0" Padding="18,3" />
+                <TextBlock x:Name="StatusText" Text="未接続" VerticalAlignment="Center" Margin="12,0,0,0" />
+            </WrapPanel>
+        </GroupBox>
+
+        <Grid Grid.Row="1" Margin="0,12,0,10">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <TextBox x:Name="CommandText" Text="AT" FontFamily="Consolas" FontSize="15" Padding="7,5" KeyDown="CommandText_KeyDown" />
+            <Button x:Name="SendButton" Grid.Column="1" Content="送信 (Enter)" Click="Send_Click" Margin="8,0,0,0" Padding="18,4" IsEnabled="False" />
+        </Grid>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="380" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <GroupBox Header="定義済みコマンド" Padding="6">
+                <DataGrid x:Name="CommandGrid" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" MouseDoubleClick="CommandGrid_MouseDoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="分類" Binding="{Binding Category}" Width="90" />
+                        <DataGridTextColumn Header="名称" Binding="{Binding DisplayName}" Width="*" />
+                        <DataGridTextColumn Header="コマンド" Binding="{Binding Command}" Width="125" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </GroupBox>
+            <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" />
+            <GroupBox Grid.Column="2" Header="通信ログ" Padding="6">
+                <TextBox x:Name="LogText" IsReadOnly="True" FontFamily="Consolas" FontSize="13"
+                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                         TextWrapping="NoWrap" AcceptsReturn="True" />
+            </GroupBox>
+        </Grid>
+
+        <DockPanel Grid.Row="3" Margin="0,10,0,0">
+            <Button Content="ログ消去" Click="ClearLog_Click" Padding="12,3" HorizontalAlignment="Left" />
+            <TextBlock Text="※ データ通信開始・GNSS等の機種固有操作は、対象機種の最新版ATコマンドマニュアルを確認してください。"
+                       Foreground="DimGray" VerticalAlignment="Center" Margin="14,0,0,0" />
+        </DockPanel>
+    </Grid>
+</Window>
