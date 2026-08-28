@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Validate version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart('v')
+          [xml]$props = Get-Content -LiteralPath Directory.Build.props
+          $declaredVersion = [string]$props.Project.PropertyGroup.VersionPrefix
+          if ($version -ne $declaredVersion) {
+            throw "Tag version '$version' does not match VersionPrefix '$declaredVersion'."
+          }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Restore
+        run: dotnet restore VehicleVision.Tools.SIMComAtCommandTester.sln
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build VehicleVision.Tools.SIMComAtCommandTester.sln -c Release --no-restore "-p:Version=$env:VERSION"
+
+      - name: Test
+        run: dotnet run --project tests/SimComAt.Core.Tests -c Release --no-build
+
+      - name: Publish applications
+        shell: pwsh
+        run: |
+          $projects = @(
+            @{ Name = "GUI"; Path = "src/SimComAt.Gui/SimComAt.Gui.csproj" },
+            @{ Name = "CLI"; Path = "src/SimComAt.Cli/SimComAt.Cli.csproj" }
+          )
+          $rids = @("win-x64", "win-arm64")
+          foreach ($project in $projects) {
+            foreach ($rid in $rids) {
+              $output = Join-Path $env:RUNNER_TEMP "publish/$($project.Name)/$rid"
+              dotnet publish $project.Path -c Release -r $rid --self-contained true `
+                -p:Version=$env:VERSION `
+                -p:PublishSingleFile=true `
+                -p:IncludeNativeLibrariesForSelfExtract=true `
+                -p:DebugType=None `
+                -o $output
+              if ($LASTEXITCODE -ne 0) { throw "Publish failed: $($project.Name) $rid" }
+              Copy-Item LICENSE, README.md -Destination $output
+            }
+          }
+
+      - name: Package and checksum
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          foreach ($application in @("GUI", "CLI")) {
+            foreach ($rid in @("win-x64", "win-arm64")) {
+              $source = Join-Path $env:RUNNER_TEMP "publish/$application/$rid/*"
+              $archive = "artifacts/SIMComAt-$application-v$env:VERSION-$rid.zip"
+              Compress-Archive -Path $source -DestinationPath $archive -CompressionLevel Optimal
+            }
+          }
+          Get-ChildItem artifacts -Filter *.zip | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          } | Set-Content artifacts/SHA256SUMS.txt -Encoding utf8
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $assets = Get-ChildItem artifacts -File | ForEach-Object { $_.FullName }
+          $arguments = @(
+            "release", "create", "${{ github.ref_name }}",
+            "--verify-tag",
+            "--title", "SIMCom AT Command Tester ${{ github.ref_name }}",
+            "--generate-notes"
+          )
+          if ($env:VERSION.StartsWith("0.")) { $arguments += "--prerelease" }
+          $arguments += $assets
+          & gh @arguments
+          if ($LASTEXITCODE -ne 0) { throw "GitHub Release creation failed." }

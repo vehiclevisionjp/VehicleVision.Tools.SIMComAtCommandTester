@@ -91,6 +91,22 @@ dotnet run --project tests/SimComAt.Core.Tests -c Release
 
 プルリクエストと`main`ブランチへのpushでは、GitHub Actionsが.NET 10のReleaseビルドとテストを実行します。
 
+## Visual Studio Code
+
+[C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit)とC#拡張を推奨しています。リポジトリをVS Codeで開くと、推奨拡張機能のインストール案内が表示されます。
+
+- `Ctrl+Shift+B`: Debug構成でソリューションをビルド
+- `Terminal` → `Run Task`: restore、Releaseビルド、テスト、GUI/CLI起動
+- `Run and Debug`: GUI、CLI、コアテストをブレークポイント付きで実行
+
+VS CodeのExplorer、検索、ファイル監視から`bin`、`obj`、`.vs`は除外されます。Gitの追跡対象からも`.gitignore`で除外されています。
+
+## バージョンとリリース
+
+[Semantic Versioning 2.0.0](https://semver.org/)を採用し、最初の公開プレビューを`0.1.0`とします。`v0.1.0`のようなタグをpushすると、GitHub ActionsがWindows x64/Arm64向けの自己完結型GUI・CLI、ZIP、SHA-256チェックサム、リリースノートを生成します。
+
+詳細な公開手順は[Release Guide](docs/RELEASING.md)、変更履歴は[CHANGELOG.md](CHANGELOG.md)を参照してください。
+
 ## プロジェクト構成
 
 ```text

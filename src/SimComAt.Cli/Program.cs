@@ -1,10 +1,12 @@
 using System.Text;
+using System.Reflection;
 using VehicleVision.SimComAt;
 
 Console.OutputEncoding = Encoding.UTF8;
 Console.CancelKeyPress += (_, eventArgs) => eventArgs.Cancel = true;
 
-Console.WriteLine("SIMCom AT Command Tester - CLI");
+var version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "development";
+Console.WriteLine($"SIMCom AT Command Tester v{version} - CLI");
 Console.WriteLine();
 
 var profile = SelectProfile();

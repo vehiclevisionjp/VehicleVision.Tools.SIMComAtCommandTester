@@ -1,4 +1,5 @@
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -15,6 +16,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Title = $"{Title} v{Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "development"}";
         ModelCombo.ItemsSource = ModemProfiles.All;
         ModelCombo.SelectedIndex = 0;
         RefreshPorts();
