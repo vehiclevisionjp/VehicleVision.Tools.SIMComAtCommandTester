@@ -1,0 +1,17 @@
+{
+  "files.exclude": {
+    "**/bin": true,
+    "**/obj": true,
+    "**/.vs": true
+  },
+  "search.exclude": {
+    "**/bin": true,
+    "**/obj": true
+  },
+  "files.watcherExclude": {
+    "**/bin/**": true,
+    "**/obj/**": true
+  },
+  "csharp.debug.justMyCode": true,
+  "dotnet.defaultSolution": "VehicleVision.Tools.SIMComAtCommandTester.sln"
+}

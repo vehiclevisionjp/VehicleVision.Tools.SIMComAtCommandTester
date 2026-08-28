@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": ".NET 10: GUI",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/SimComAt.Gui/bin/Debug/net10.0-windows/SimComAt.Gui.dll",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "justMyCode": true,
+      "console": "internalConsole"
+    },
+    {
+      "name": ".NET 10: CLI",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/SimComAt.Cli/bin/Debug/net10.0-windows/SimComAt.Cli.dll",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "justMyCode": true,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": ".NET 10: Core Tests",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/tests/SimComAt.Core.Tests/bin/Debug/net10.0-windows/SimComAt.Core.Tests.dll",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "justMyCode": true,
+      "console": "integratedTerminal"
+    }
+  ]
+}
