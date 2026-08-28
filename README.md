@@ -12,7 +12,7 @@ SIM7100Jx、SIM7600JC-H、SIM7312G-M.2、SIM8262E-M2向けのATコマンド確�
 ## 必要環境
 
 - Windows 10/11
-- .NET 8 SDK（実行だけなら .NET 8 Desktop Runtime）
+- .NET 10 SDK（実行だけなら .NET 10 Desktop Runtime）
 - SIMComモジュールのATコマンド用COMポート
 
 USBドライバーを導入し、デバイスマネージャーでATコマンド用ポートを確認してください。診断、NMEA、モデム等の別ポートを選ぶと応答しません。
