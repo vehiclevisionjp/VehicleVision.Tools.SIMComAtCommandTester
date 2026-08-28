@@ -72,41 +72,55 @@ static async Task RunMenuAsync(ModemProfile profile, AtCommandClient client)
         Console.WriteLine();
         Console.WriteLine($"プロファイル: {profile.DisplayName}");
         Console.WriteLine("1. 定義済みコマンド  2. AT直接入力  3. 一括診断  4. APN・認証設定");
-        Console.WriteLine("5. PSアタッチ        6. PDP有効化    7. PDP無効化  8. 機種再判定  0. 終了");
-        switch (ReadInt("選択: ", 0, 0, 8))
+        Console.WriteLine("5. PSアタッチ        6. PDP有効化    7. PDP無効化  8. 機種再判定");
+        Console.WriteLine("9. SMS送信           10. GNSS操作                              0. 終了");
+        try
         {
-            case 0:
-                await client.DisconnectAsync();
-                return;
-            case 1:
-                await RunPresetAsync(profile, client);
-                break;
-            case 2:
-                Console.Write("ATコマンド: ");
-                var command = Console.ReadLine();
-                if (!string.IsNullOrWhiteSpace(command)) await ExecuteAndPrintAsync(client, command);
-                break;
-            case 3:
-                foreach (var definition in profile.Commands.Where(x =>
-                             !x.IsParameterized && x.Risk == AtCommandRisk.ReadOnly &&
-                             x.Category is "基本" or "端末情報" or "SIM" or "ネットワーク"))
-                    await ExecuteAndPrintAsync(client, definition.Command);
-                break;
-            case 4:
-                await ConfigurePdpAsync(client);
-                break;
-            case 5:
-                PrintResult(await new PdpContextService(client).AttachAsync(), "PSアタッチ");
-                break;
-            case 6:
-                PrintResult(await new PdpContextService(client).ActivateAsync(ReadInt("CID [1]: ", 1, 1, 16)), "PDP有効化");
-                break;
-            case 7:
-                PrintResult(await new PdpContextService(client).DeactivateAsync(ReadInt("CID [1]: ", 1, 1, 16)), "PDP無効化");
-                break;
-            case 8:
-                profile = await DetectAsync(client);
-                break;
+            switch (ReadInt("選択: ", 0, 0, 10))
+            {
+                case 0:
+                    await client.DisconnectAsync();
+                    return;
+                case 1:
+                    await RunPresetAsync(profile, client);
+                    break;
+                case 2:
+                    Console.Write("ATコマンド: ");
+                    var command = Console.ReadLine();
+                    if (!string.IsNullOrWhiteSpace(command)) await ExecuteAndPrintAsync(client, command);
+                    break;
+                case 3:
+                    foreach (var definition in profile.Commands.Where(x =>
+                                 !x.IsParameterized && x.Risk == AtCommandRisk.ReadOnly &&
+                                 x.Category is "基本" or "端末情報" or "SIM" or "ネットワーク"))
+                        await ExecuteAndPrintAsync(client, definition.Command);
+                    break;
+                case 4:
+                    await ConfigurePdpAsync(client);
+                    break;
+                case 5:
+                    PrintResult(await new PdpContextService(client).AttachAsync(), "PSアタッチ");
+                    break;
+                case 6:
+                    PrintResult(await new PdpContextService(client).ActivateAsync(ReadInt("CID [1]: ", 1, 1, 16)), "PDP有効化");
+                    break;
+                case 7:
+                    PrintResult(await new PdpContextService(client).DeactivateAsync(ReadInt("CID [1]: ", 1, 1, 16)), "PDP無効化");
+                    break;
+                case 8:
+                    profile = await DetectAsync(client);
+                    break;
+                case 9:
+                    await SendSmsAsync(client);
+                    break;
+                case 10:
+                    await RunGnssAsync(profile, client);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"操作失敗: {ex.Message}");
         }
     }
 }
@@ -145,6 +159,36 @@ static async Task ConfigurePdpAsync(AtCommandClient client)
     var result = await new PdpContextService(client).ConfigureAsync(
         new PdpContextSettings(cid, apn, pdpType, authentication, user, password));
     Console.WriteLine(result.IsSuccess ? "APN・認証設定が完了しました。" : $"設定失敗: {result.FailedStep?.RawResponse}");
+}
+
+static async Task SendSmsAsync(AtCommandClient client)
+{
+    Console.Write("送信先 (+8190...): ");
+    var destination = Console.ReadLine()?.Trim() ?? string.Empty;
+    Console.WriteLine("文字コード: 1. GSM/ASCII  2. UCS2/日本語");
+    var encoding = ReadInt("選択 [1]: ", 1, 1, 2) == 1 ? SmsTextEncoding.Gsm : SmsTextEncoding.Ucs2;
+    Console.Write("本文: ");
+    var body = Console.ReadLine() ?? string.Empty;
+    if (!Confirm($"{destination}へSMSを送信しますか？")) return;
+    var result = await new SmsService(client).SendAsync(new SmsMessage(destination, body, encoding));
+    Console.WriteLine(result.IsSuccess ? "SMS送信が完了しました。" : $"SMS送信失敗: {result.FailedStep?.RawResponse}");
+}
+
+static async Task RunGnssAsync(ModemProfile profile, AtCommandClient client)
+{
+    if (!profile.Supports(ModemCapability.Gnss))
+    {
+        Console.WriteLine("選択中のプロファイルはGNSS非対応です。");
+        return;
+    }
+    Console.WriteLine("1. 電源ON  2. 測位情報取得  3. 電源OFF  0. 戻る");
+    var service = new GnssService(client, profile);
+    switch (ReadInt("選択: ", 0, 0, 3))
+    {
+        case 1: PrintResult(await service.PowerOnAsync(), "GNSS電源ON"); break;
+        case 2: PrintResult(await service.GetInformationAsync(), "GNSS情報取得"); break;
+        case 3: PrintResult(await service.PowerOffAsync(), "GNSS電源OFF"); break;
+    }
 }
 
 static async Task ExecuteAndPrintAsync(AtCommandClient client, string command)

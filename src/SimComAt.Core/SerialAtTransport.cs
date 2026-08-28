@@ -47,6 +47,14 @@ public sealed class SerialAtTransport : IAtTransport
         await _port.BaseStream.FlushAsync(cancellationToken);
     }
 
+    public async Task WriteRawAsync(ReadOnlyMemory<byte> data, string traceText, CancellationToken cancellationToken = default)
+    {
+        EnsureOpen();
+        Trace?.Invoke(this, new AtTraceEntry(DateTimeOffset.Now, true, AtCommandRedactor.Redact(traceText)));
+        await _port.BaseStream.WriteAsync(data, cancellationToken);
+        await _port.BaseStream.FlushAsync(cancellationToken);
+    }
+
     public async Task<string?> ReadLineAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         EnsureOpen();
@@ -68,6 +76,38 @@ public sealed class SerialAtTransport : IAtTransport
                     return line;
                 }
                 buffer.Add(one[0]);
+            }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
+    }
+
+    public async Task<string?> ReadUntilAsync(string marker, TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        EnsureOpen();
+        if (string.IsNullOrEmpty(marker)) throw new ArgumentException("待機するマーカーを指定してください。", nameof(marker));
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(timeout);
+        var bytes = new List<byte>();
+        var one = new byte[1];
+        try
+        {
+            while (true)
+            {
+                var read = await _port.BaseStream.ReadAsync(one, timeoutCts.Token);
+                if (read == 0) return null;
+                bytes.Add(one[0]);
+                var text = System.Text.Encoding.ASCII.GetString(bytes.ToArray());
+                var markerFound = text.EndsWith(marker, StringComparison.Ordinal);
+                var commandRejected = text.EndsWith("\r\nERROR\r\n", StringComparison.Ordinal) ||
+                    ((text.Contains("+CME ERROR:", StringComparison.Ordinal) || text.Contains("+CMS ERROR:", StringComparison.Ordinal)) &&
+                     text.EndsWith("\r\n", StringComparison.Ordinal));
+                if (!markerFound && !commandRejected) continue;
+                var display = text.Trim();
+                if (display.Length > 0) Trace?.Invoke(this, new AtTraceEntry(DateTimeOffset.Now, false, display));
+                return text;
             }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)

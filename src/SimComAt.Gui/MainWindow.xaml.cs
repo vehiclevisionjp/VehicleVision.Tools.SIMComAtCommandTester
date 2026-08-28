@@ -151,6 +151,58 @@ public partial class MainWindow : Window
     private async void Deactivate_Click(object sender, RoutedEventArgs e) =>
         await RunPdpOperationAsync(async service => Report(await service.DeactivateAsync(ReadContextId()), "PDP無効化"));
 
+    private async void SendSms_Click(object sender, RoutedEventArgs e)
+    {
+        if (_client?.IsConnected != true || _busy) return;
+        try
+        {
+            SetBusy(true);
+            var encodingText = (SmsEncodingCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Gsm";
+            var message = new SmsMessage(SmsDestinationText.Text.Trim(), SmsBodyText.Text,
+                Enum.Parse<SmsTextEncoding>(encodingText, true));
+            if (MessageBox.Show(this, $"{message.Destination} へSMSを送信しますか？", "SMS送信確認",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            var result = await new SmsService(_client).SendAsync(message);
+            AppendLog(result.IsSuccess ? "-- SMS送信完了" : $"!! SMS送信失敗: {result.FailedStep?.RawResponse}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"!! SMS送信失敗: {ex.Message}");
+            MessageBox.Show(this, ex.Message, "SMS送信エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    private async void GnssOn_Click(object sender, RoutedEventArgs e) =>
+        await RunGnssOperationAsync(async service => Report(await service.PowerOnAsync(), "GNSS電源ON"));
+
+    private async void GnssInfo_Click(object sender, RoutedEventArgs e) =>
+        await RunGnssOperationAsync(async service => Report(await service.GetInformationAsync(), "GNSS情報取得"));
+
+    private async void GnssOff_Click(object sender, RoutedEventArgs e) =>
+        await RunGnssOperationAsync(async service => Report(await service.PowerOffAsync(), "GNSS電源OFF"));
+
+    private async Task RunGnssOperationAsync(Func<GnssService, Task> operation)
+    {
+        if (_client?.IsConnected != true || SelectedProfile is null || _busy) return;
+        try
+        {
+            SetBusy(true);
+            await operation(new GnssService(_client, SelectedProfile));
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"!! {ex.Message}");
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
     private async Task RunPdpOperationAsync(Func<PdpContextService, Task> operation)
     {
         if (_client?.IsConnected != true || _busy) return;
@@ -236,6 +288,11 @@ public partial class MainWindow : Window
         AttachButton.IsEnabled = packetDataEnabled;
         ActivateButton.IsEnabled = packetDataEnabled;
         DeactivateButton.IsEnabled = packetDataEnabled;
+        SendSmsButton.IsEnabled = !busy && _client?.IsConnected == true && SelectedProfile?.Supports(ModemCapability.Sms) == true;
+        var gnssEnabled = !busy && _client?.IsConnected == true && SelectedProfile?.Supports(ModemCapability.Gnss) == true;
+        GnssOnButton.IsEnabled = gnssEnabled;
+        GnssInfoButton.IsEnabled = gnssEnabled;
+        GnssOffButton.IsEnabled = gnssEnabled;
     }
 
     private async Task DisconnectAsync()

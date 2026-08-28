@@ -10,7 +10,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("型番から5Gプロファイルを判定する", DetectsFiveGProfile),
     ("APNとPAP認証を設定する", ConfiguresPdpContext),
     ("認証情報をログ用文字列から除去する", RedactsCredentials),
-    ("APNへのコマンド注入を拒否する", RejectsUnsafeApn)
+    ("APNへのコマンド注入を拒否する", RejectsUnsafeApn),
+    ("SMSプロンプト後に本文とCtrl+Zを送信する", SendsSmsPayload),
+    ("日本語SMSをUCS2へ変換する", SendsUcs2Sms),
+    ("系列別GNSSコマンドを選択する", SelectsGnssCommands)
 };
 
 var failed = 0;
@@ -123,6 +126,39 @@ static async Task RejectsUnsafeApn()
     }
 }
 
+static async Task SendsSmsPayload()
+{
+    await using var transport = new FakeTransport("OK", "OK", "+CMGS: 42", "OK");
+    await transport.OpenAsync();
+    var result = await new SmsService(new AtCommandClient(transport)).SendAsync(new SmsMessage("+819012345678", "hello"));
+    Assert(result.IsSuccess, "SMS送信が成功しません。");
+    Assert(transport.Commands[^1] == "AT+CMGS=\"+819012345678\"", "CMGSコマンドが不正です。");
+    Assert(transport.RawWrites.Count == 1, "SMS本文が送信されていません。");
+    Assert(transport.RawWrites[0].SequenceEqual(System.Text.Encoding.ASCII.GetBytes("hello").Append((byte)0x1A)), "本文または終端文字が不正です。");
+    Assert(transport.RawTraceTexts[0] == "[SMS本文 5文字]", "本文がログへ露出しています。");
+}
+
+static async Task SendsUcs2Sms()
+{
+    await using var transport = new FakeTransport("OK", "OK", "OK", "+CMGS: 7", "OK");
+    await transport.OpenAsync();
+    var result = await new SmsService(new AtCommandClient(transport)).SendAsync(
+        new SmsMessage("+8190", "テスト", SmsTextEncoding.Ucs2));
+    Assert(result.IsSuccess, "UCS2 SMS送信が成功しません。");
+    Assert(transport.Commands.Contains("AT+CSCS=\"UCS2\""), "UCS2文字セットが設定されていません。");
+    Assert(transport.Commands[^1] == "AT+CMGS=\"002B0038003100390030\"", "送信先のUCS2変換が不正です。");
+    var payload = System.Text.Encoding.ASCII.GetString(transport.RawWrites[0][..^1]);
+    Assert(payload == "30C630B930C8", "本文のUCS2変換が不正です。");
+}
+
+static Task SelectsGnssCommands()
+{
+    Assert(GnssService.TryGetCommands(SimComFamily.Sim7000, out var lpwa) && lpwa.Information == "AT+CGNSINF", "SIM7000 GNSSが不正です。");
+    Assert(GnssService.TryGetCommands(SimComFamily.A76xx, out var cat1) && cat1.PowerOn == "AT+CGNSSPWR=1", "A76xx GNSSが不正です。");
+    Assert(GnssService.TryGetCommands(SimComFamily.Sim7500_7600, out var lte) && lte.Information == "AT+CGPSINFO", "SIM7600 GNSSが不正です。");
+    return Task.CompletedTask;
+}
+
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
@@ -133,6 +169,8 @@ file sealed class FakeTransport(params string[] lines) : IAtTransport
     private readonly Queue<string> _lines = new(lines);
     public bool IsOpen { get; private set; }
     public List<string> Commands { get; } = [];
+    public List<byte[]> RawWrites { get; } = [];
+    public List<string> RawTraceTexts { get; } = [];
     public event EventHandler<AtTraceEntry>? Trace;
 
     public Task OpenAsync(CancellationToken cancellationToken = default)
@@ -154,12 +192,23 @@ file sealed class FakeTransport(params string[] lines) : IAtTransport
         return Task.CompletedTask;
     }
 
+    public Task WriteRawAsync(ReadOnlyMemory<byte> data, string traceText, CancellationToken cancellationToken = default)
+    {
+        RawWrites.Add(data.ToArray());
+        RawTraceTexts.Add(traceText);
+        Trace?.Invoke(this, new AtTraceEntry(DateTimeOffset.Now, true, traceText));
+        return Task.CompletedTask;
+    }
+
     public Task<string?> ReadLineAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         var line = _lines.Count > 0 ? _lines.Dequeue() : null;
         if (line is not null) Trace?.Invoke(this, new AtTraceEntry(DateTimeOffset.Now, false, line));
         return Task.FromResult(line);
     }
+
+    public Task<string?> ReadUntilAsync(string marker, TimeSpan timeout, CancellationToken cancellationToken = default) =>
+        Task.FromResult<string?>(marker);
 
     public ValueTask DisposeAsync()
     {

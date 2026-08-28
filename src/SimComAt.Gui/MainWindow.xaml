@@ -82,6 +82,41 @@
                                    Text="設定値はAT+CGDCONT / AT+CGAUTHで反映します。資格情報はログ上でマスクされ、保存されません。" />
                     </Grid>
                 </TabItem>
+                <TabItem Header="SMS">
+                    <Grid Margin="14">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="送信先" VerticalAlignment="Center" />
+                        <TextBox x:Name="SmsDestinationText" Grid.Column="1" Margin="4" Padding="4" ToolTip="例: +819012345678" />
+                        <TextBlock Grid.Row="1" Text="文字コード" VerticalAlignment="Center" />
+                        <ComboBox x:Name="SmsEncodingCombo" Grid.Row="1" Grid.Column="1" Margin="4" SelectedIndex="0">
+                            <ComboBoxItem Content="GSM / ASCII（最大160文字）" Tag="Gsm" />
+                            <ComboBoxItem Content="UCS2 / 日本語（最大70文字）" Tag="Ucs2" />
+                        </ComboBox>
+                        <TextBlock Grid.Row="2" Text="本文" Margin="0,8,0,0" />
+                        <TextBox x:Name="SmsBodyText" Grid.Row="2" Grid.Column="1" Margin="4" Padding="6" AcceptsReturn="True"
+                                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+                        <Button x:Name="SendSmsButton" Grid.Row="3" Grid.ColumnSpan="2" Content="SMS送信" Click="SendSms_Click"
+                                Margin="0,12,0,0" Padding="14,5" HorizontalAlignment="Left" IsEnabled="False" />
+                        <TextBlock Grid.Row="4" Grid.ColumnSpan="2" Margin="0,12,0,0" TextWrapping="Wrap" Foreground="DimGray"
+                                   Text="本文は通信ログに出力しません。UCS2では送信先と本文を16進表現へ変換します。" />
+                    </Grid>
+                </TabItem>
+                <TabItem Header="GNSS">
+                    <StackPanel Margin="14">
+                        <TextBlock Text="選択中の系列に対応するGNSSコマンドを自動的に使用します。" TextWrapping="Wrap" />
+                        <WrapPanel Margin="0,14,0,0">
+                            <Button x:Name="GnssOnButton" Content="GNSS電源ON" Click="GnssOn_Click" Padding="14,5" IsEnabled="False" />
+                            <Button x:Name="GnssInfoButton" Content="測位情報取得" Click="GnssInfo_Click" Margin="6,0,0,0" Padding="14,5" IsEnabled="False" />
+                            <Button x:Name="GnssOffButton" Content="GNSS電源OFF" Click="GnssOff_Click" Margin="6,0,0,0" Padding="14,5" IsEnabled="False" />
+                        </WrapPanel>
+                        <TextBlock Margin="0,14,0,0" Foreground="DimGray" TextWrapping="Wrap"
+                                   Text="初回測位には屋外で数分かかる場合があります。アンテナ接続とモジュール仕様を確認してください。" />
+                    </StackPanel>
+                </TabItem>
             </TabControl>
             <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" />
             <GroupBox Grid.Column="2" Header="通信ログ" Padding="6">

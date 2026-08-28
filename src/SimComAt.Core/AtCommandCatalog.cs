@@ -52,8 +52,6 @@ public static class AtCommandCatalog
         new("clock", "モデム時刻", "AT+CCLK?", "診断"),
         new("functionality", "機能レベル", "AT+CFUN?", "診断"),
         new("temperature", "温度", "AT+CPMUTEMP", "診断"),
-        new("gnss-power", "GNSS電源状態", "AT+CGNSPWR?", "GNSS", RequiredCapability: ModemCapability.Gnss),
-        new("gnss-info", "GNSS測位情報", "AT+CGNSINF", "GNSS", RequiredCapability: ModemCapability.Gnss),
         new("http-status", "HTTPサービス状態", "AT+HTTPSTATUS?", "HTTP", RequiredCapability: ModemCapability.Http),
         new("mqtt-status", "MQTT接続状態", "AT+CMQTTCONNECT?", "MQTT", RequiredCapability: ModemCapability.Mqtt),
         new("filesystem-list", "ファイル一覧", "AT+FSLS", "ファイル", RequiredCapability: ModemCapability.FileSystem),
@@ -62,7 +60,16 @@ public static class AtCommandCatalog
         new("power-down", "電源OFF", "AT+CPOF", "保守", "モデムの電源を切ります", Risk: AtCommandRisk.Destructive)
     ];
 
-    public static IReadOnlyList<AtCommandDefinition> For(ModemCapability capabilities) =>
-        All.Where(x => x.RequiredCapability == ModemCapability.None ||
-                       (capabilities & x.RequiredCapability) == x.RequiredCapability).ToArray();
+    public static IReadOnlyList<AtCommandDefinition> For(ModemCapability capabilities, SimComFamily family)
+    {
+        var commands = All.Where(x => x.RequiredCapability == ModemCapability.None ||
+                                      (capabilities & x.RequiredCapability) == x.RequiredCapability).ToList();
+        if ((capabilities & ModemCapability.Gnss) == ModemCapability.Gnss && GnssService.TryGetCommands(family, out var gnss))
+        {
+            commands.Add(new("gnss-on", "GNSS電源ON", gnss.PowerOn, "GNSS", Risk: AtCommandRisk.Configuration));
+            commands.Add(new("gnss-off", "GNSS電源OFF", gnss.PowerOff, "GNSS", Risk: AtCommandRisk.Configuration));
+            commands.Add(new("gnss-info", "GNSS測位情報", gnss.Information, "GNSS"));
+        }
+        return commands;
+    }
 }

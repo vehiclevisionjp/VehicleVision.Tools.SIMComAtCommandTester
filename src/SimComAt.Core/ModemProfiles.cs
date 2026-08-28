@@ -8,7 +8,8 @@ public static class ModemProfiles
     private static readonly (string Id, string Name, SimComFamily Family, ModemCapability Caps, string[] Prefixes)[] Definitions =
     [
         ("generic", "自動検出 / 汎用SIMCom", SimComFamily.Generic, ModemCapability.Sms | BasicPacket, []),
-        ("sim800", "SIM800 / SIM900シリーズ", SimComFamily.Sim800, ModemCapability.Gsm | ModemCapability.Sms | Internet | ModemCapability.Voice, ["SIM800", "SIM808", "SIM868", "SIM900"]),
+        ("sim808-868", "SIM808 / SIM868シリーズ", SimComFamily.Sim800, ModemCapability.Gsm | ModemCapability.Sms | Internet | ModemCapability.Voice | ModemCapability.Gnss, ["SIM808", "SIM868"]),
+        ("sim800", "SIM800 / SIM900シリーズ", SimComFamily.Sim800, ModemCapability.Gsm | ModemCapability.Sms | Internet | ModemCapability.Voice, ["SIM800", "SIM900"]),
         ("sim7000", "SIM7000シリーズ", SimComFamily.Sim7000, ModemCapability.Gsm | ModemCapability.LteM | ModemCapability.NbIot | ModemCapability.Sms | Internet | ModemCapability.Gnss, ["SIM7000"]),
         ("sim7020", "SIM7020 / SIM7022シリーズ", SimComFamily.Sim7020, ModemCapability.NbIot | Internet, ["SIM7020", "SIM7022"]),
         ("sim7070", "SIM7070 / SIM7080 / SIM7090シリーズ", SimComFamily.Sim7070, ModemCapability.LteM | ModemCapability.NbIot | ModemCapability.Sms | Internet | ModemCapability.Gnss, ["SIM7070", "SIM7080", "SIM7090"]),
@@ -21,7 +22,7 @@ public static class ModemProfiles
     ];
 
     public static IReadOnlyList<ModemProfile> All { get; } = Definitions
-        .Select(x => new ModemProfile(x.Id, x.Name, x.Family, 115200, x.Caps, x.Prefixes, AtCommandCatalog.For(x.Caps)))
+        .Select(x => new ModemProfile(x.Id, x.Name, x.Family, 115200, x.Caps, x.Prefixes, AtCommandCatalog.For(x.Caps, x.Family)))
         .ToArray();
 
     public static ModemProfile Generic => All[0];

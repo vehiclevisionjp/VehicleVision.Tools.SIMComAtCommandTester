@@ -50,6 +50,53 @@ public sealed class AtCommandClient(IAtTransport transport)
         }
     }
 
+    public async Task<AtCommandResult> ExecutePromptAsync(
+        string command,
+        string prompt,
+        ReadOnlyMemory<byte> payload,
+        byte terminator = 0x1A,
+        string payloadTraceText = "[ペイロード]",
+        TimeSpan? promptTimeout = null,
+        TimeSpan? responseTimeout = null,
+        CancellationToken cancellationToken = default)
+    {
+        command = Normalize(command);
+        await _commandLock.WaitAsync(cancellationToken);
+        try
+        {
+            var stopwatch = Stopwatch.StartNew();
+            await transport.WriteLineAsync(command, cancellationToken);
+            var promptResponse = await transport.ReadUntilAsync(prompt, promptTimeout ?? TimeSpan.FromSeconds(15), cancellationToken);
+            if (promptResponse is null)
+                return new(AtCommandRedactor.Redact(command), [], false, true, stopwatch.Elapsed);
+            if (promptResponse.Contains("ERROR", StringComparison.OrdinalIgnoreCase))
+                return new(AtCommandRedactor.Redact(command), [promptResponse.Trim()], false, false, stopwatch.Elapsed);
+
+            var terminatedPayload = new byte[payload.Length + 1];
+            payload.CopyTo(terminatedPayload);
+            terminatedPayload[^1] = terminator;
+            await transport.WriteRawAsync(terminatedPayload, payloadTraceText, cancellationToken);
+
+            var lines = new List<string>();
+            var limit = responseTimeout ?? TimeSpan.FromSeconds(60);
+            var responseWatch = Stopwatch.StartNew();
+            while (responseWatch.Elapsed < limit)
+            {
+                var line = await transport.ReadLineAsync(limit - responseWatch.Elapsed, cancellationToken);
+                if (line is null) return new(AtCommandRedactor.Redact(command), lines, false, true, stopwatch.Elapsed);
+                var safeLine = AtCommandRedactor.Redact(line);
+                lines.Add(safeLine);
+                if (IsSuccess(line)) return new(AtCommandRedactor.Redact(command), lines, true, false, stopwatch.Elapsed);
+                if (IsError(line)) return new(AtCommandRedactor.Redact(command), lines, false, false, stopwatch.Elapsed);
+            }
+            return new(AtCommandRedactor.Redact(command), lines, false, true, stopwatch.Elapsed);
+        }
+        finally
+        {
+            _commandLock.Release();
+        }
+    }
+
     private static string Normalize(string command)
     {
         var value = command.Trim().TrimEnd('\r', '\n');

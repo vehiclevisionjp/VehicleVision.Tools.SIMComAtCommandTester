@@ -122,3 +122,13 @@ public sealed record AtWorkflowResult(IReadOnlyList<AtCommandResult> Steps)
     public bool IsSuccess => Steps.Count > 0 && Steps.All(x => x.IsSuccess);
     public AtCommandResult? FailedStep => Steps.FirstOrDefault(x => !x.IsSuccess);
 }
+
+public enum SmsTextEncoding
+{
+    Gsm,
+    Ucs2
+}
+
+public sealed record SmsMessage(string Destination, string Text, SmsTextEncoding Encoding = SmsTextEncoding.Gsm);
+
+public sealed record GnssCommandSet(string PowerOn, string PowerOff, string Information);
