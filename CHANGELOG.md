@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-30
+
 ### Added
 
 - SIMCom主要系列の機種自動判定と能力プロファイル
@@ -18,3 +20,4 @@
 ## Release links
 
 [Unreleased]: ../../compare/v0.1.0...HEAD
+[0.1.0]: ../../releases/tag/v0.1.0
